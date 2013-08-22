@@ -29,7 +29,8 @@ public class ManagedSocket implements Socket {
         this.managedContext.addSocket(this);
     }
 
-    public ZMQ.Socket getZMQSocket() {
+    @Override
+	public ZMQ.Socket getZMQSocket() {
         return socket;
     }
 
