@@ -30,7 +30,7 @@ public class ManagedSocket implements Socket {
     }
 
     @Override
-	public ZMQ.Socket getZMQSocket() {
+    public ZMQ.Socket getZMQSocket() {
         return socket;
     }
 

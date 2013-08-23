@@ -180,7 +180,7 @@ public class SocketBuilder implements Bindable, Connectable {
      * {@inheritDoc}
      */
     @Override
-	public Socket connect(String url) {
+    public Socket connect(String url) {
         ZMQ.Socket socket = createConnectableSocketWithStandardSettings();
         socket.connect(url);
         return new ManagedSocket(context, socket);
@@ -204,7 +204,7 @@ public class SocketBuilder implements Bindable, Connectable {
      * {@inheritDoc}
      */
     @Override
-	public Socket bind(String url, String... additionalUrls) {
+    public Socket bind(String url, String... additionalUrls) {
         ZMQ.Socket socket = createBindableSocketWithStandardSettings();
         bind(socket, url, additionalUrls);
         return new ManagedSocket(context, socket);
