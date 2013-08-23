@@ -99,7 +99,7 @@ public class ManagedContext implements Context {
             case DEALER:
                 return new DealerSocketBuilder(this);
             case PAIR:
-                return new SocketBuilder(this, SocketType.PAIR);
+                return new PairSocketBuilder(this);
         }
         throw new IllegalArgumentException("Socket type not supported: " + type);
     }
