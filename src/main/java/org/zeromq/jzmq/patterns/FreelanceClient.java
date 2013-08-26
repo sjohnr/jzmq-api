@@ -72,20 +72,20 @@ public class FreelanceClient {
     private static final int PING_INTERVAL = 2000;    //  msecs
     //  Server considered dead if silent for this long
     private static final int SERVER_TTL = 6000;       //  msecs
-
+    
     //  Structure of our frontend class
     private ZContext ctx;        //  Our context wrapper
     private Socket pipe;         //  Pipe through to flcliapi agent
-
+    
     /**
      * Construct a Freelance Pattern agent with an embedded ZContext.
      */
     public FreelanceClient() {
-    	FreelanceAgent agent = new FreelanceAgent();
+        FreelanceAgent agent = new FreelanceAgent();
         this.ctx = new ZContext();
         this.pipe = ZThread.fork(ctx, agent);
     }
-
+    
     /**
      * Send a CONNECT message to the backend agent.
      * 
@@ -95,14 +95,14 @@ public class FreelanceClient {
         ZMsg msg = new ZMsg();
         msg.add("CONNECT");
         msg.add(endpoint);
-
+        
         msg.send(pipe);
         try {
             Thread.sleep(100);   //  Allow connection to come up
         } catch (InterruptedException e) {
         }
     }
-
+    
     /**
      * Send a REQUEST message to the backend agent.
      * 
@@ -120,17 +120,17 @@ public class FreelanceClient {
                 reply = null;
             }
         }
-
+        
         return reply;
     }
-
+    
     /**
      * Destroy the embedded context.
      */
     public void destroy() {
         ctx.destroy();
     }
-
+    
     /**
      * Simple class for one server we talk to.
      */
@@ -139,7 +139,7 @@ public class FreelanceClient {
         private boolean alive;          //  true if known to be alive
         private long pingAt;            //  Next ping at this time
         private long expires;           //  Expires at this time
-
+        
         /**
          * Construct an internal server.
          * 
@@ -151,7 +151,7 @@ public class FreelanceClient {
             this.pingAt = System.currentTimeMillis() + PING_INTERVAL;
             this.expires = System.currentTimeMillis() + SERVER_TTL;
         }
-
+        
         /**
          * Send a PING message to the ROUTER socket.
          * 
@@ -166,24 +166,24 @@ public class FreelanceClient {
                 pingAt = System.currentTimeMillis() + PING_INTERVAL;
             }
         }
-
+        
         public long tickless(long tickless) {
-        	long result = -1;
+            long result = -1;
             if (tickless > pingAt) {
                 result = pingAt;
             }
-
+            
             return result;
         }
-
+        
         /**
          * Nothing.
          */
         public void destroy() {
-        	
+            
         }
     }
-
+    
     /**
      * Simple class for one background agent.
      */
@@ -195,36 +195,38 @@ public class FreelanceClient {
         private int sequence;                    //  Number of requests ever sent
         private ZMsg request;                    //  Current request if any
         private long expires;                    //  Timeout for request/reply
-
+        
         /**
          * Construct a background agent.
          * 
          * @param ctx The embedded ZContext of the client
          * @param pipe The inproc pipe socket
          */
-        protected Agent(ZContext ctx, Socket pipe) {
+        public Agent(ZContext ctx, Socket pipe) {
             this.pipe = pipe;
             this.router = ctx.createSocket(ZMQ.ROUTER);
             this.servers = new HashMap<String, Server>();
             this.actives = new ArrayList<Server>();
         }
-
+        
         /**
          * Destroy the server instances this agent is connected to.
          */
-        protected void destroy() {
+        public void destroy() {
             for (Server server: servers.values()) {
                 server.destroy();
             }
+            
+            router.close();
         }
-
+        
         /**
          * Callback when we remove server from agent 'servers' hash table.
          */
-        private void controlMessage() {
+        public void controlMessage() {
             ZMsg msg = ZMsg.recvMsg(pipe);
             String command = msg.popString();
-
+            
             if (command.equals("CONNECT")) {
                 String endpoint = msg.popString();
                 System.out.printf("I: connecting to %s...\n", endpoint);
@@ -237,26 +239,20 @@ public class FreelanceClient {
             } else if (command.equals("REQUEST")) {
                 assert (request == null);    //  Strict request-reply cycle
                 //  Prefix request with sequence number and empty envelope
-                String sequenceText = String.format("%d", Integer.valueOf(++sequence));
-                msg.push(sequenceText);
+                msg.push(String.valueOf(++sequence));
                 //  Take ownership of request message
                 request = msg;
-                msg = null;
                 //  Request expires after global timeout
                 expires = System.currentTimeMillis() + GLOBAL_TIMEOUT;
             }
-
-            if (msg != null) {
-                msg.destroy();
-            }
         }
-
+        
         /**
          * Callback to process one message from a connected server.
          */
-        private void routerMessage() {
+        public void routerMessage() {
             ZMsg reply = ZMsg.recvMsg(router);
-
+            
             //  Frame 0 is server that replied
             String endpoint = reply.popString();
             Server server = servers.get(endpoint);
@@ -267,20 +263,18 @@ public class FreelanceClient {
             }
             server.pingAt = System.currentTimeMillis() + PING_INTERVAL;
             server.expires = System.currentTimeMillis() + SERVER_TTL;
-
+            
             //  Frame 1 may be sequence number for reply
             String sequenceStr = reply.popString();
-            if (Integer.parseInt(sequenceStr) == sequence) {
+            if (!sequenceStr.equals("PONG")
+                    && Integer.parseInt(sequenceStr) == sequence) {
                 reply.push("OK");
                 reply.send(pipe);
-                request.destroy();
                 request = null;
-            } else {
-                reply.destroy();
             }
         }
     }
-
+    
     /**
      * Task for background thread.
      */
@@ -288,7 +282,7 @@ public class FreelanceClient {
         @Override
         public void run(Object[] args, ZContext ctx, Socket pipe) {
             Agent agent = new Agent(ctx, pipe);
-
+            
             PollItem[] items = {
                     new PollItem(agent.pipe, ZMQ.Poller.POLLIN),
                     new PollItem(agent.router, ZMQ.Poller.POLLIN)
@@ -300,28 +294,28 @@ public class FreelanceClient {
                         &&  tickless > agent.expires) {
                     tickless = agent.expires;
                 }
-
+                
                 for (Server server: agent.servers.values()) {
                     long newTickless = server.tickless(tickless);
                     if (newTickless > 0) {
                         tickless = newTickless;
                     }
                 }
-
+                
                 int rc = ZMQ.poll(items,
                         (tickless - System.currentTimeMillis()));
                 if (rc == -1) {
                     break;              //  Context has been shut down
                 }
-
+                
                 if (items[0].isReadable()) {
                     agent.controlMessage();
                 }
-
+                
                 if (items[1].isReadable()) {
                     agent.routerMessage();
                 }
-
+                
                 //  If we're processing a request, dispatch to next server
                 if (agent.request != null) {
                     if (System.currentTimeMillis() >= agent.expires) {
@@ -345,13 +339,14 @@ public class FreelanceClient {
                         }
                     }
                 }
-
+                
                 //  Disconnect and delete any expired servers
                 //  Send heartbeats to idle servers if needed
                 for (Server server: agent.servers.values()) {
                     server.ping(agent.router);
                 }
             }
+            
             agent.destroy();
         }
     }
