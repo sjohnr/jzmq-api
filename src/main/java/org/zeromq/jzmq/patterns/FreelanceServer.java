@@ -12,7 +12,7 @@ import org.zeromq.ZThread;
 import org.zeromq.ZThread.IAttachedRunnable;
 
 public class FreelanceServer {
-	private static final Logger log = LoggerFactory.getLogger(FreelanceServer.class);
+    private static final Logger log = LoggerFactory.getLogger(FreelanceServer.class);
 	
     private ZContext ctx;
     private Socket pipe;
@@ -77,109 +77,92 @@ public class FreelanceServer {
     }
     
     /**
-     * Simple class for one background agent.
-     */
-    private static class Agent {
-        private Socket pipe;
-        private Socket router;
-
-        /**
-         * Construct a background agent.
-         * 
-         * @param ctx The embedded ZContext of the client
-         * @param pipe The inproc pipe socket
-         */
-        public Agent(ZContext ctx, Socket pipe) {
-            this.pipe = pipe;
-            this.router = ctx.createSocket(ZMQ.ROUTER);
-        }
-        
-        /**
-         * Callback when we receive a message from frontend thread.
-         */
-        public void pipeMessage() {
-            ZMsg message = ZMsg.recvMsg(pipe);
-            if (log.isDebugEnabled()) {
-            	log.debug(message.toString());
-            }
-            
-            String command = message.popString();
-            if (command.equals("IDENT")) {
-            	String identity = message.popString();
-            	router.setIdentity(identity.getBytes());
-            } else if (command.equals("BIND")) {
-            	String endpoint = message.popString();
-            	router.bind(endpoint);
-                System.out.printf("I: service is ready at %s\n", endpoint);
-            } else if (command.equals("REPLY")) {
-            	message.send(router);
-            }
-        }
-        
-        /**
-         * Callback when we receive a message from a connected client.
-         */
-        public void routerMessage() {
-            ZMsg message = ZMsg.recvMsg(router);
-            if (log.isDebugEnabled()) {
-            	log.debug(message.toString());
-            }
-            
-            ZFrame identity = message.pop();
-            ZFrame control = message.pop();
-            
-            if (control.streq("PING")) {
-            	ZMsg reply = new ZMsg();
-            	reply.add(identity);
-                reply.add("PONG");
-                if (log.isDebugEnabled()) {
-                	log.debug(reply.toString());
-                }
-                
-                reply.send(router);
-            } else {
-            	message.push(control);
-            	message.push(identity);
-                message.send(pipe);
-            }
-        }
-        
-        /**
-         * Destroy the backend ROUTER socket.
-         */
-        public void destroy() {
-            router.close();
-        }
-    }
-    
-    /**
      * Task for background thread.
      */
     private static class FreelanceAgent implements IAttachedRunnable {
         @Override
         public void run(Object[] args, ZContext ctx, Socket pipe) {
-            Agent agent = new Agent(ctx, pipe);
+            Socket router = ctx.createSocket(ZMQ.ROUTER);
             
             PollItem[] items = {
-                    new PollItem(agent.pipe, ZMQ.Poller.POLLIN),
-                    new PollItem(agent.router, ZMQ.Poller.POLLIN)
+                    new PollItem(pipe, ZMQ.Poller.POLLIN),
+                    new PollItem(router, ZMQ.Poller.POLLIN)
             };
-            while (!Thread.currentThread().isInterrupted()) {
+            while (true) {
                 int rc = ZMQ.poll(items, 25);
                 if (rc == -1) {
                     break;              //  Context has been shut down
                 }
                 
                 if (items[0].isReadable()) {
-                    agent.pipeMessage();
+                    pipeMessage(pipe, router);
                 }
                 
                 if (items[1].isReadable()) {
-                    agent.routerMessage();
+                    routerMessage(pipe, router);
                 }
             }
             
-            agent.destroy();
+            router.close();
+        }
+        
+        /**
+         * Callback when we receive a message from frontend thread.
+         * 
+         * @param pipe The inproc pipe socket
+         * @param socket The router socket
+         */
+        private void pipeMessage(Socket pipe, Socket router) {
+            ZMsg message = ZMsg.recvMsg(pipe);
+            if (log.isDebugEnabled()) {
+                log.debug("Received pipe message:\n" + message.toString());
+            }
+            
+            String command = message.popString();
+            if (command.equals("IDENT")) {
+                String identity = message.popString();
+                router.setIdentity(identity.getBytes());
+            } else if (command.equals("BIND")) {
+                String endpoint = message.popString();
+                router.bind(endpoint);
+                System.out.printf("I: service is ready at %s\n", endpoint);
+            } else if (command.equals("REPLY")) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Sending reply:\n" + message.toString());
+                }
+                
+                message.send(router);
+            }
+        }
+        
+        /**
+         * Callback when we receive a message from a connected client.
+         * 
+         * @param pipe The inproc pipe socket
+         * @param socket The router socket
+         */
+        private void routerMessage(Socket pipe, Socket router) {
+            ZMsg message = ZMsg.recvMsg(router);
+            if (log.isDebugEnabled()) {
+                log.debug("Received router message:\n" + message.toString());
+            }
+            
+            ZFrame identity = message.pop();
+            ZFrame control = message.pop();
+            if (control.streq("PING")) {
+                ZMsg reply = new ZMsg();
+                reply.add(identity);
+                reply.add("PONG");
+                if (log.isDebugEnabled()) {
+                    log.debug("Sending pong:\n" + reply.toString());
+                }
+                
+                reply.send(router);
+            } else {
+                message.push(control);
+                message.push(identity);
+                message.send(pipe);
+            }
         }
     }
 }
