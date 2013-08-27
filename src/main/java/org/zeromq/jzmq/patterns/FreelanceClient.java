@@ -260,19 +260,17 @@ public class FreelanceClient {
                                 server.alive = false;
                                 newServer = true;
                             } else {
+                                if (newRequest || newServer) {
+                                    ZMsg message = request.duplicate();
+                                    message.push(server.endpoint);
+                                    if (log.isDebugEnabled()) {
+                                        log.debug("Sending request:\n" + message.toString());
+                                    }
+                                    
+                                    message.send(router);
+                                }
                                 break;
                             }
-                        }
-                        
-                        Server server = actives.peek();
-                        if (newRequest || newServer && server != null) {
-                            ZMsg message = request.duplicate();
-                            message.push(server.endpoint);
-                            if (log.isDebugEnabled()) {
-                                log.debug("Sending request:\n" + message.toString());
-                            }
-                            
-                            message.send(router);
                         }
                     }
                 }
