@@ -75,7 +75,7 @@ public class FreelanceServer {
         assert (request != null);
         message.push(control);
         message.push(identity);
-    	message.push("REPLY");
+        message.push("REPLY");
         message.send(pipe);
         request = null;
         identity = null;
