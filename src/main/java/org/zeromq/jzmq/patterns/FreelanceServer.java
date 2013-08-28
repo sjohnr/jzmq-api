@@ -16,6 +16,9 @@ public class FreelanceServer {
 	
     private ZContext ctx;
     private Socket pipe;
+    private ZMsg request;
+    private ZFrame identity;
+    private ZFrame control;
 
     /**
      * Construct a Freelance Pattern server with an embedded ZContext.
@@ -55,7 +58,11 @@ public class FreelanceServer {
      * @return The received message from a connected client
      */
     public ZMsg receive() {
-        ZMsg request = ZMsg.recvMsg(pipe);
+        assert (request == null);
+        request = ZMsg.recvMsg(pipe);
+        identity = request.pop();
+        control = request.pop();
+        
         return request;
     }
     
@@ -65,8 +72,14 @@ public class FreelanceServer {
      * @param message The reply message to send to the connected client
      */
     public void send(ZMsg message) {
+        assert (request != null);
+        message.push(control);
+        message.push(identity);
     	message.push("REPLY");
         message.send(pipe);
+        request = null;
+        identity = null;
+        control = null;
     }
     
     /**
@@ -88,7 +101,7 @@ public class FreelanceServer {
                     new PollItem(pipe, ZMQ.Poller.POLLIN),
                     new PollItem(router, ZMQ.Poller.POLLIN)
             };
-            while (true) {
+            while (!Thread.currentThread().isInterrupted()) {
                 int rc = ZMQ.poll(items, 25);
                 if (rc == -1) {
                     break;              //  Context has been shut down

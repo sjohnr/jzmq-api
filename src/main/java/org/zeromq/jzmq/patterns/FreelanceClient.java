@@ -248,6 +248,10 @@ public class FreelanceClient {
                         //  Request expired, kill it
                         ZMsg message = new ZMsg();
                         message.add("FAILED");
+                        if (log.isDebugEnabled()) {
+                            log.debug("Sending failure:\n" + message.toString());
+                        }
+                        
                         message.send(pipe);
                         request = null;
                     } else {
