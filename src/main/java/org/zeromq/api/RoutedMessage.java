@@ -10,7 +10,6 @@ import java.util.List;
 public class RoutedMessage extends Message {
 
     public RoutedMessage() {
-
     }
 
     /**
