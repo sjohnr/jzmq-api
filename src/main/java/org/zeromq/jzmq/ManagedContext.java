@@ -1,5 +1,6 @@
 package org.zeromq.jzmq;
 
+import java.nio.channels.SelectableChannel;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -20,6 +21,7 @@ import org.zeromq.api.PollerType;
 import org.zeromq.api.Socket;
 import org.zeromq.api.SocketType;
 import org.zeromq.api.exception.ZMQExceptions;
+import org.zeromq.jzmq.beacon.BeaconReactorBuilder;
 import org.zeromq.jzmq.bstar.BinaryStarBuilder;
 import org.zeromq.jzmq.poll.PollableImpl;
 import org.zeromq.jzmq.poll.PollerBuilder;
@@ -191,6 +193,11 @@ public class ManagedContext implements Context {
     }
 
     @Override
+    public Pollable newPollable(SelectableChannel channel, PollerType... options) {
+        return new PollableImpl(channel, options);
+    }
+
+    @Override
     public ReactorBuilder buildReactor() {
         return new ReactorBuilder(this);
     }
@@ -198,6 +205,11 @@ public class ManagedContext implements Context {
     @Override
     public BinaryStarBuilder buildBinaryStar() {
         return new BinaryStarBuilder(this);
+    }
+
+    @Override
+    public BeaconReactorBuilder buildBeaconReactor() {
+        return new BeaconReactorBuilder(this);
     }
 
     @Override
