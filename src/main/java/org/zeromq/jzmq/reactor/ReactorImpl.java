@@ -81,7 +81,6 @@ public class ReactorImpl implements Reactor, Runnable {
     @Override
     public void stop() {
         running.set(false);
-        thread.interrupt();
         try {
             thread.join();
         } catch (InterruptedException ignored) {
