@@ -188,10 +188,12 @@ public class ManagedContext implements Context {
         return new PollerBuilder(this);
     }
 
+    @Deprecated
     public ZMQ.Poller newZmqPoller(int initialNumberOfItems) {
         return new ZMQ.Poller(initialNumberOfItems);
     }
 
+    @Deprecated
     public ZMQ.Poller newZmqPoller() {
         return newZmqPoller(32);
     }
@@ -246,7 +248,7 @@ public class ManagedContext implements Context {
         forward(frontEnd, backEnd);
     }
 
-    public void addBackgroundable(Backgroundable backgroundable) {
+    private void addBackgroundable(Backgroundable backgroundable) {
         backgroundables.add(backgroundable);
     }
 
