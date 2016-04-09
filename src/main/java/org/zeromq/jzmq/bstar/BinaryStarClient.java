@@ -39,7 +39,7 @@ class BinaryStarClient implements Backgroundable {
     }
 
     @Override
-    public void run(Context context, Socket pipe, Object... args) {
+    public void run(Context context, Socket pipe) {
         Socket socket = null;
         Message message = null;
         Poller poller = context.buildPoller()

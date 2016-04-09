@@ -7,15 +7,13 @@ class ReactorTimer implements Comparable<ReactorTimer> {
     public long initialDelay;
     public int numIterations;
     public LoopHandler handler;
-    public Object[] args;
 
     public long nextFireTime = -1;
 
-    public ReactorTimer(long initialDelay, int numIterations, LoopHandler handler, Object... args) {
+    public ReactorTimer(long initialDelay, int numIterations, LoopHandler handler) {
         this.initialDelay = initialDelay;
         this.numIterations = numIterations;
         this.handler = handler;
-        this.args = args;
     }
 
     public void recalculate(long now) {
@@ -23,7 +21,7 @@ class ReactorTimer implements Comparable<ReactorTimer> {
     }
 
     public void execute(Reactor reactor) {
-        handler.execute(reactor, null, args);
+        handler.execute(reactor, null);
 
         // Decrement counter if applicable
         if (numIterations > 0) {

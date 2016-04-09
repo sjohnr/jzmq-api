@@ -251,7 +251,7 @@ public class ManagedContext implements Context {
     }
 
     @Override
-    public Socket fork(Backgroundable backgroundable, Object... args) {
+    public Socket fork(Backgroundable backgroundable) {
         int pipeId = backgroundable.hashCode();
         String endpoint = String.format("inproc://jzmq-pipe-%d", pipeId);
         
@@ -260,14 +260,14 @@ public class ManagedContext implements Context {
         Socket backend = buildSocket(SocketType.PAIR).connect(endpoint);
         
         // start child thread
-        fork(backend, backgroundable, args);
+        fork(backend, backgroundable);
         
         return frontend;
     }
 
     @Override
-    public void fork(Socket socket, Backgroundable backgroundable, Object... args) {
-        Thread shim = new ShimThread(this, backgroundable, socket, args);
+    public void fork(Socket socket, Backgroundable backgroundable) {
+        Thread shim = new ShimThread(this, backgroundable, socket);
         addBackgroundable(backgroundable);
         shim.start();
     }
@@ -280,19 +280,17 @@ public class ManagedContext implements Context {
         private ManagedContext context;
         private Backgroundable backgroundable;
         private Socket pipe;
-        private Object[] args;
         
-        public ShimThread(ManagedContext context, Backgroundable backgroundable, Socket pipe, Object... args) {
+        public ShimThread(ManagedContext context, Backgroundable backgroundable, Socket pipe) {
             this.context = context;
             this.backgroundable = backgroundable;
             this.pipe = pipe;
-            this.args = args;
         }
         
         @Override
         public void run() {
             try {
-                backgroundable.run(context, pipe, args);
+                backgroundable.run(context, pipe);
             } catch (ZMQException ex) {
                 if (!ZMQExceptions.isContextTerminated(ex)) {
                     throw ZMQExceptions.wrap(ex);
