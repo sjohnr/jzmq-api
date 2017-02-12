@@ -3,6 +3,8 @@ package org.zeromq.jzmq.clone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zeromq.api.Backgroundable;
+import org.zeromq.api.CloneClientHandler;
+import org.zeromq.api.CloneMessage;
 import org.zeromq.api.Context;
 import org.zeromq.api.LoopHandler;
 import org.zeromq.api.Message;
@@ -39,11 +41,13 @@ public class CloneClientAgent implements Backgroundable {
     private long sequence;
     private long heartbeatInterval;
     private long serverExpiry;
+    private CloneClientHandler callbackHandler;
 
-    public CloneClientAgent(ManagedContext context, long heartbeatInterval) {
+    public CloneClientAgent(ManagedContext context, long heartbeatInterval, CloneClientHandler callbackHandler) {
         this.context = context;
         this.reactor = context.buildReactor().build();
         this.heartbeatInterval = heartbeatInterval;
+        this.callbackHandler = callbackHandler;
     }
 
     @Override
@@ -170,6 +174,11 @@ public class CloneClientAgent implements Backgroundable {
                 serverExpiry = Long.MAX_VALUE;
                 map.clear();
                 requestSnapshot();
+
+                // invoke the client callback
+                if (callbackHandler != null) {
+                    callbackHandler.onSnapshotStart();
+                }
             }
         }
     }
@@ -182,11 +191,21 @@ public class CloneClientAgent implements Backgroundable {
                 log.info("Received snapshot: {}", message.getSequence());
                 sequence = message.getSequence();
                 updateExpiry();
+
+                // invoke the client callback
+                if (callbackHandler != null) {
+                    callbackHandler.onSnapshotEnd(message);
+                }
             } else {
                 if (message.getValue() != null) {
                     map.put(message.getKey(), new String(message.getValue(), Message.CHARSET));
                 } else {
                     map.remove(message.getKey());
+                }
+
+                // invoke the client callback
+                if (callbackHandler != null) {
+                    callbackHandler.onUpdate(message);
                 }
             }
         }
@@ -200,6 +219,10 @@ public class CloneClientAgent implements Backgroundable {
 
             // Discard out-of-sequence updates, incl. hugz
             if (message.getKey().equals(HUGZ)) {
+                // invoke the client callback
+                if (callbackHandler != null) {
+                    callbackHandler.onHeartbeat(message);
+                }
                 return;
             } else if (message.getSequence() <= sequence) {
                 log.debug("Discarding out of sequence update: [{}] key={}", message.getSequence(), message.getKey());
@@ -211,6 +234,11 @@ public class CloneClientAgent implements Backgroundable {
                 map.remove(message.getKey());
             } else if (message.getKey().startsWith(subtree)) {
                 map.put(message.getKey(), new String(message.getValue(), Message.CHARSET));
+            }
+
+            // invoke the client callback
+            if (callbackHandler != null) {
+                callbackHandler.onUpdate(message);
             }
         }
     }

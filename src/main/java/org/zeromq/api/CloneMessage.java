@@ -1,14 +1,14 @@
-package org.zeromq.jzmq.clone;
-
-import org.zeromq.api.Message;
-import org.zeromq.api.Socket;
+package org.zeromq.api;
 
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 
-class CloneMessage implements Cloneable {
+/**
+ * Message containing data for a CHP (Clustered Hashmap Protocol) update.
+ */
+public class CloneMessage implements Cloneable {
     private long sequence;
     private UUID uuid;
     private String key;

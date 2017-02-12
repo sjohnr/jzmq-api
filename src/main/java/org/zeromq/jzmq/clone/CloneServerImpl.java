@@ -3,6 +3,7 @@ package org.zeromq.jzmq.clone;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zeromq.api.BinaryStarReactor;
+import org.zeromq.api.CloneMessage;
 import org.zeromq.api.CloneServer;
 import org.zeromq.api.LoopHandler;
 import org.zeromq.api.Message;

@@ -1,6 +1,7 @@
 package org.zeromq.jzmq.clone;
 
 import org.zeromq.api.CloneClient;
+import org.zeromq.api.CloneClientHandler;
 import org.zeromq.jzmq.ManagedContext;
 
 public class CloneClientBuilder {
@@ -11,6 +12,7 @@ public class CloneClientBuilder {
         public int backupPort;
         public String subtree;
         public long heartbeatInterval = 1000L;
+        public CloneClientHandler handler;
     }
 
     private ManagedContext context;
@@ -51,7 +53,7 @@ public class CloneClientBuilder {
     }
 
     public CloneClient build() {
-        CloneClient cloneClient = new CloneClientImpl(context, spec.heartbeatInterval);
+        CloneClient cloneClient = new CloneClientImpl(context, spec.heartbeatInterval, spec.handler);
         if (spec.subtree != null) {
             cloneClient.subscribe(spec.subtree);
         }

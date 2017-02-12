@@ -1,6 +1,7 @@
 package org.zeromq.jzmq.clone;
 
 import org.zeromq.api.CloneClient;
+import org.zeromq.api.CloneClientHandler;
 import org.zeromq.api.Message;
 import org.zeromq.api.Socket;
 import org.zeromq.jzmq.ManagedContext;
@@ -17,8 +18,8 @@ public class CloneClientImpl implements CloneClient {
 
     private final Socket pipe;
 
-    public CloneClientImpl(ManagedContext context, long heartbeatInterval) {
-        this.pipe = context.fork(new CloneClientAgent(context, heartbeatInterval));
+    public CloneClientImpl(ManagedContext context, long heartbeatInterval, CloneClientHandler callbackHandler) {
+        this.pipe = context.fork(new CloneClientAgent(context, heartbeatInterval, callbackHandler));
     }
 
     @Override
